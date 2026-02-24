@@ -9,60 +9,260 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- CONFIGURATION
-st.set_page_config(page_title="NVDA Earnings Intelligence", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="NVDA Earnings Intelligence", layout="wide", initial_sidebar_state="expanded")
 
-# --- THEME
-C_GREEN  = "#76b900"   # NVDA green
-C_BLUE   = "#00a8e0"   # accent blue
-C_RED    = "#e05252"
-C_GOLD   = "#f0c040"
-C_BG     = "#0e1117"
-C_CARD   = "#1a1f2e"
-C_TEXT   = "#e8eaf0"
-C_MUTED  = "#8892a4"
-C_CI     = "rgba(118,185,0,0.12)"
-C_RANGE  = "rgba(255,255,255,0.06)"
+if 'app_theme' not in st.session_state:
+    st.session_state.app_theme = 'Light'
+
+IS_DARK = st.session_state.app_theme == 'Dark'
+
+# --- ACCENT COLORS (same for both themes)
+C_GREEN = "#76b900"   # NVDA green
+C_BLUE  = "#00a8e0"   # accent blue
+C_RED   = "#d94f4f"
+C_GOLD  = "#d4a017"   # darker gold — readable on white
+
+# --- THEME-DEPENDENT COLORS
+if IS_DARK:
+    C_BG          = "#0e1117"
+    C_CARD        = "#1a1f2e"
+    C_TEXT        = "#e8eaf0"
+    C_MUTED       = "#9aa5b8"
+    C_GRID        = "#2a3040"
+    C_BORDER      = "#2a3040"
+    C_CARD_ALT    = "#242938"
+    C_LINE_INDIV  = "rgba(180,200,230,0.50)"
+    PLOTLY_TPL    = "plotly_dark"
+    NAV_BG        = "#141828"
+    NAV_BORDER    = "#2a3040"
+    NAV_TEXT      = "#9aa5b8"
+    INSIGHT_BG    = "#1e2333"
+    INSIGHT_BDR   = "#d4a017"
+    GUIDE_BG      = "#1a2230"
+    GUIDE_BDR     = "#2a7a3a"
+    GUIDE_TEXT    = "#c8d4e8"
+    METRIC_BG     = "#1e2333"
+    METRIC_TEXT   = "#8899aa"
+    H2_BORDER     = "#2a3040"
+    HR_COLOR      = "#2a3040"
+    CARD_SHADOW   = "0 2px 10px rgba(0,0,0,0.5)"
+else:
+    C_BG          = "#f4f6fa"
+    C_CARD        = "#ffffff"
+    C_TEXT        = "#1a202c"
+    C_MUTED       = "#4a5568"
+    C_GRID        = "#d8e0ee"
+    C_BORDER      = "#dde4f0"
+    C_CARD_ALT    = "#eef1f8"
+    C_LINE_INDIV  = "rgba(50,80,160,0.35)"
+    PLOTLY_TPL    = "plotly_white"
+    NAV_BG        = "#e4e9f4"
+    NAV_BORDER    = "#c8d0e4"
+    NAV_TEXT      = "#374151"
+    INSIGHT_BG    = "#fffdf0"
+    INSIGHT_BDR   = "#c8900e"
+    GUIDE_BG      = "#f0f7ff"
+    GUIDE_BDR     = "#2d7d3a"
+    GUIDE_TEXT    = "#1a202c"
+    METRIC_BG     = "#f0f3fa"
+    METRIC_TEXT   = "#4a5568"
+    H2_BORDER     = "#d0d8ec"
+    HR_COLOR      = "#d0d8ec"
+    CARD_SHADOW   = "0 2px 8px rgba(0,0,0,0.08)"
 
 PLOTLY_THEME = dict(
-    template="plotly_dark",
+    template=PLOTLY_TPL,
     paper_bgcolor=C_CARD,
     plot_bgcolor=C_CARD,
     font=dict(family="Inter, sans-serif", color=C_TEXT, size=12),
     margin=dict(l=40, r=20, t=50, b=40),
 )
 
+# We use a unique class .nvda-nav-radio to scope nav styles
+# away from the sidebar radio, avoiding cross-contamination.
 st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; background: {C_BG}; color: {C_TEXT}; }}
-    .block-container {{ padding: 2rem 2rem; max-width: 1600px; }}
-    
-    /* Custom CSS to transform st.radio into tabs that hold state */
-    div[data-testid="stRadio"] > div {{ flex-direction: row; gap: 4px; background: {C_CARD}; border-radius: 10px; padding: 4px; }}
-    div[data-testid="stRadio"] > div > label {{ border-radius: 8px; padding: 8px 20px; color: {C_MUTED}; font-weight: 500; background: transparent; cursor: pointer; }}
-    div[data-testid="stRadio"] > div > label[data-checked="true"] {{ background: {C_GREEN} !important; color: #000 !important; font-weight: 700; }}
-    div[data-testid="stRadio"] > div > label > div:first-child {{ display: none; }} /* Hide the radio circle */
-    
-    div[data-testid="metric-container"] {{ background: {C_CARD}; border-radius: 12px; padding: 16px 20px; 
-      border-left: 3px solid {C_GREEN}; }}
-    div[data-testid="metric-container"] label {{ color: {C_MUTED} !important; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }}
-    div[data-testid="metric-container"] [data-testid="stMetricValue"] {{ color: {C_TEXT} !important; font-size: 26px; font-weight: 700; }}
-    div[data-testid="metric-container"] [data-testid="stMetricDelta"] {{ font-size: 12px; }}
-    .kpi-red {{ border-left-color: {C_RED}    !important; }}
-    .kpi-blue {{ border-left-color: {C_BLUE}   !important; }}
-    .kpi-gold {{ border-left-color: {C_GOLD}   !important; }}
-    h1 {{ font-size: 32px; font-weight: 700; color: {C_TEXT}; margin-bottom: 10px; }}
-    h2 {{ font-size: 18px; font-weight: 600; color: {C_TEXT}; border-bottom: 1px solid #2a3040; padding-bottom: 6px; margin-top: 20px; }}
-    h3 {{ font-size: 14px; font-weight: 600; color: {C_MUTED}; text-transform: uppercase; letter-spacing: 1px; }}
-    .insight-box {{ background: {C_CARD}; border-left: 3px solid {C_GOLD}; border-radius: 8px; 
-      padding: 14px 18px; margin: 12px 0; font-size: 13px; line-height: 1.65; color: {C_TEXT}; }}
-    .guide-box {{ background: linear-gradient(135deg, rgba(0,168,224,0.08), rgba(118,185,0,0.08)); 
-      border: 1px solid rgba(118,185,0,0.3); border-radius: 8px; 
-      padding: 14px 18px; margin: 12px 0; font-size: 13px; line-height: 1.65; color: {C_TEXT}; }}
-    .metric-explain {{ background: rgba(136,146,164,0.1); border-radius: 6px; 
-      padding: 8px 12px; margin: 6px 0; font-size: 12px; color: {C_MUTED}; }}
-    .stDataFrame {{ border-radius: 10px; overflow: hidden; }}
-    hr {{ border-color: #2a3040; margin: 30px 0; }}
+
+    /* ── Page base ── */
+    .stApp, .stApp > header, section.main > div {{
+        background-color: {C_BG} !important;
+    }}
+    .block-container {{
+        padding: 1.5rem 2rem !important;
+        max-width: 1600px !important;
+        background-color: {C_BG} !important;
+    }}
+    /* Default text */
+    .stApp, .stApp p, .stApp span, .stApp div, .stApp li {{
+        color: {C_TEXT};
+        font-family: 'Inter', sans-serif;
+    }}
+    .stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown span {{
+        color: {C_TEXT} !important;
+    }}
+
+    /* ── Navigation tab bar (main content area only) ── */
+    .nvda-nav-wrap div[data-testid="stRadio"] > div {{
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 3px !important;
+        background: {NAV_BG} !important;
+        border-radius: 10px !important;
+        padding: 5px !important;
+        border: 1px solid {NAV_BORDER} !important;
+    }}
+    .nvda-nav-wrap div[data-testid="stRadio"] > div > label {{
+        border-radius: 7px !important;
+        padding: 8px 18px !important;
+        color: {NAV_TEXT} !important;
+        font-weight: 500 !important;
+        background: transparent !important;
+        cursor: pointer !important;
+        transition: all 0.15s ease !important;
+        font-size: 13px !important;
+    }}
+    .nvda-nav-wrap div[data-testid="stRadio"] > div > label:hover {{
+        background: rgba(118,185,0,0.18) !important;
+        color: {C_TEXT} !important;
+    }}
+    .nvda-nav-wrap div[data-testid="stRadio"] > div > label[data-checked="true"] {{
+        background: {C_GREEN} !important;
+        color: #000000 !important;
+        font-weight: 700 !important;
+        box-shadow: 0 2px 6px rgba(118,185,0,0.4) !important;
+    }}
+    .nvda-nav-wrap div[data-testid="stRadio"] > div > label > div:first-child {{
+        display: none !important;
+    }}
+    /* Hide the nav label text */
+    .nvda-nav-wrap div[data-testid="stRadio"] > label {{
+        display: none !important;
+    }}
+
+    /* ── KPI Metric Cards ── */
+    div[data-testid="metric-container"] {{
+        background: {C_CARD} !important;
+        border-radius: 12px !important;
+        padding: 16px 20px !important;
+        border: none !important;
+        border-left: 4px solid {C_GREEN} !important;
+        box-shadow: {CARD_SHADOW} !important;
+    }}
+    div[data-testid="metric-container"] label,
+    div[data-testid="metric-container"] [data-testid="stMetricLabel"] p {{
+        color: {C_MUTED} !important;
+        font-size: 11px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }}
+    div[data-testid="metric-container"] [data-testid="stMetricValue"],
+    div[data-testid="metric-container"] [data-testid="stMetricValue"] p {{
+        color: {C_TEXT} !important;
+        font-size: 26px !important;
+        font-weight: 700 !important;
+    }}
+
+    /* ── Typography ── */
+    h1 {{ color: {C_TEXT} !important; font-size: 30px !important; font-weight: 700 !important; margin-bottom: 8px !important; }}
+    h2 {{ color: {C_TEXT} !important; font-size: 18px !important; font-weight: 600 !important;
+          border-bottom: 1px solid {H2_BORDER} !important; padding-bottom: 6px !important; margin-top: 18px !important; }}
+    h3 {{ color: {C_MUTED} !important; font-size: 13px !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 1px !important; }}
+
+    /* ── Custom info boxes ── */
+    .insight-box {{
+        background: {INSIGHT_BG} !important;
+        border-left: 4px solid {INSIGHT_BDR} !important;
+        border-radius: 8px !important;
+        padding: 14px 18px !important;
+        margin: 10px 0 !important;
+        font-size: 13px !important;
+        line-height: 1.7 !important;
+        color: {C_TEXT} !important;
+        box-shadow: {CARD_SHADOW} !important;
+    }}
+    .insight-box b, .insight-box strong {{ color: {C_TEXT} !important; }}
+
+    .guide-box {{
+        background: {GUIDE_BG} !important;
+        border: 1px solid {GUIDE_BDR} !important;
+        border-left: 4px solid {GUIDE_BDR} !important;
+        border-radius: 8px !important;
+        padding: 14px 18px !important;
+        margin: 10px 0 !important;
+        font-size: 13px !important;
+        line-height: 1.7 !important;
+        color: {GUIDE_TEXT} !important;
+    }}
+    .guide-box b, .guide-box strong {{ color: {C_TEXT} !important; }}
+    .guide-box span {{ color: inherit !important; }}
+
+    .metric-explain {{
+        background: {METRIC_BG} !important;
+        border-radius: 6px !important;
+        padding: 10px 14px !important;
+        margin: 8px 0 !important;
+        font-size: 12px !important;
+        color: {METRIC_TEXT} !important;
+        border: 1px solid {C_BORDER} !important;
+    }}
+    .metric-explain b, .metric-explain strong {{ color: {C_TEXT} !important; }}
+
+    /* ── DataFrames / tables ── */
+    .stDataFrame {{ border-radius: 10px !important; overflow: hidden !important; border: 1px solid {C_BORDER} !important; }}
+    .stDataFrame table th {{ background: {C_CARD_ALT} !important; color: {C_TEXT} !important; font-weight: 600 !important; }}
+    .stDataFrame table td {{ color: {C_TEXT} !important; background: {C_CARD} !important; }}
+
+    /* ── Streamlit Arrow / glide-data-grid (iframe-based dataframe) dark mode ── */
+    .stDataFrame > div {{ background: {C_CARD} !important; }}
+    .stDataFrame [data-testid="stDataFrameResizable"] {{ background: {C_CARD} !important; }}
+    /* Header row */
+    .stDataFrame .dvn-scroller .gdg-header-row,
+    .stDataFrame [role="columnheader"],
+    .stDataFrame [class*="header"] {{ 
+        background-color: {C_CARD_ALT} !important; 
+        color: {C_TEXT} !important; 
+    }}
+    /* Data cells */
+    .stDataFrame [role="gridcell"],
+    .stDataFrame [role="row"],
+    .stDataFrame [class*="row"] {{ 
+        background-color: {C_CARD} !important; 
+        color: {C_TEXT} !important; 
+    }}
+    /* Canvas-based grid — inject background via wrapper */
+    .stDataFrame canvas {{ filter: {'invert(1) hue-rotate(180deg)' if IS_DARK else 'none'} !important; }}
+    /* Full iframe override */
+    .stDataFrame iframe {{ 
+        background: {C_CARD} !important; 
+        color-scheme: {'dark' if IS_DARK else 'light'} !important;
+    }}
+
+    /* ── Misc ── */
+    hr {{ border-color: {HR_COLOR} !important; margin: 24px 0 !important; }}
+
+    /* ── Sidebar ── */
+    section[data-testid="stSidebar"] {{
+        background: {C_CARD} !important;
+        border-right: 1px solid {C_BORDER} !important;
+    }}
+    section[data-testid="stSidebar"] * {{ color: {C_TEXT} !important; }}
+    section[data-testid="stSidebar"] label {{ color: {C_MUTED} !important; }}
+
+    /* ── Widgets ── */
+    .stSelectbox label, .stSlider label, .stNumberInput label,
+    .stMultiSelect label {{ color: {C_TEXT} !important; font-weight: 500 !important; }}
+    div[data-baseweb="select"] > div {{
+        background: {C_CARD} !important;
+        border-color: {C_BORDER} !important;
+        color: {C_TEXT} !important;
+    }}
+    div[data-baseweb="select"] span {{ color: {C_TEXT} !important; }}
+    input[type="number"] {{
+        background: {C_CARD} !important;
+        color: {C_TEXT} !important;
+        border-color: {C_BORDER} !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,6 +287,26 @@ KNOWN_EVENTS = {
     "2025-08-27": ("Flat", " Data center Revenue ($41.1B) missed Street expectations ($41.3B)"),
 }
 
+_DF_PROPS = {}  # Never override per-cell — would kill background_gradient colors
+_DF_TABLE_STYLES = [
+    {'selector': 'th', 'props': [
+        ('background-color', C_CARD_ALT),
+        ('color', C_TEXT),
+        ('border', f'1px solid {C_BORDER}'),
+        ('font-weight', '600'),
+    ]},
+    {'selector': 'td', 'props': [
+        ('color', C_TEXT),
+        ('border', f'1px solid {C_BORDER}'),
+    ]},
+    {'selector': 'table', 'props': [
+        ('background-color', C_CARD),
+    ]},
+    {'selector': '', 'props': [
+        ('background-color', C_CARD),
+    ]},
+] if IS_DARK else []
+
 # --- DATA LOADING
 @st.cache_data
 def load_data():
@@ -100,8 +320,6 @@ def load_data():
     df_load['Date'] = pd.to_datetime(df_load['Date'], errors='coerce')
     df_load = df_load.dropna(subset=['Date']).set_index('Date').sort_index()
 
-    # Fixed: Changed skiprows from 3 to 1 to only skip header row, not first 2 data rows
-    # This ensures all 12 earnings dates are loaded (previously only loaded 10)
     df_earn = pd.read_csv(EARN_FILE, header=None, skiprows=1)
     df_earn.columns = ['Date']
     df_earn['Date'] = pd.to_datetime(df_earn['Date'], errors='coerce')
@@ -124,15 +342,15 @@ def load_data():
         lc = f + '_L'
         if lc in df.columns:
             contrib[f] = df[f] * df[lc]
-    
+
     df['Factor_Return'] = contrib.sum(axis=1)
     df['Total_Return'] = df[target]
     df['Idio_Return'] = df['Total_Return'] - df['Factor_Return']
 
-    mkt_cols  = [c for c in ['Market', 'Beta', 'Excess Beta'] if c in contrib.columns]
-    semi_cols = [c for c in ['Semiconductors'] if c in contrib.columns]
+    mkt_cols   = [c for c in ['Market', 'Beta', 'Excess Beta'] if c in contrib.columns]
+    semi_cols  = [c for c in ['Semiconductors'] if c in contrib.columns]
     style_cols = [c for c in ['Value','Growth','Momentum','Quality','Size','Mid Cap',
-                              'Volatility','Liquidity','Leverage','Dividend Yield','Earnings Yield']
+                               'Volatility','Liquidity','Leverage','Dividend Yield','Earnings Yield']
                   if c in contrib.columns]
     df['Grp_Market'] = contrib[mkt_cols].sum(axis=1) if mkt_cols else 0.0
     df['Grp_Semi']   = contrib[semi_cols].sum(axis=1) if semi_cols else 0.0
@@ -186,14 +404,29 @@ def kelly(win_rate, avg_win, avg_loss):
         return 0.0
     return win_rate - (1 - win_rate) / (abs(avg_win) / abs(avg_loss))
 
-# --- PLOT HELPERS 
+# --- PLOT HELPERS
 def apply_theme(fig, height=420, title=""):
-    fig.update_layout(height=height, title=dict(text=title, font=dict(size=14, color=C_TEXT)),
-                      **PLOTLY_THEME)
-    fig.update_xaxes(gridcolor="#2a3040", zeroline=False, tickfont=dict(color=C_TEXT),
-                     title_font=dict(color=C_TEXT))
-    fig.update_yaxes(gridcolor="#2a3040", zeroline=False, tickfont=dict(color=C_TEXT),
-                     title_font=dict(color=C_TEXT))
+    fig.update_layout(
+        height=height,
+        title=dict(text=title, font=dict(size=14, color=C_TEXT)),
+        **PLOTLY_THEME
+    )
+    fig.update_xaxes(
+        gridcolor=C_GRID, zeroline=False,
+        tickfont=dict(color=C_TEXT),
+        title_font=dict(color=C_TEXT),
+        linecolor=C_GRID
+    )
+    fig.update_yaxes(
+        gridcolor=C_GRID, zeroline=False,
+        tickfont=dict(color=C_TEXT),
+        title_font=dict(color=C_TEXT),
+        linecolor=C_GRID
+    )
+    # Ensure legend text is visible
+    if fig.layout.legend:
+        fig.update_layout(legend=dict(font=dict(color=C_TEXT)))
+    # Update text font on traces
     for trace in fig.data:
         if hasattr(trace, 'textfont') and trace.textfont is not None:
             trace.textfont.color = C_TEXT
@@ -213,41 +446,52 @@ def plot_cumulative_paths(event_df, metric='Idio_Return', title=""):
     cmax  = cum.max(axis=1)
     cmin  = cum.min(axis=1)
 
+    range_fill  = "rgba(100,120,160,0.25)" if IS_DARK else "rgba(60,80,140,0.10)"
+    range_line  = "rgba(150,170,210,0.4)"  if IS_DARK else "rgba(80,100,160,0.3)"
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=list(cmax.index) + list(cmin.index[::-1]),
-        y=list(cmax) + list(cmin[::-1]), fill='toself',
-        fillcolor='rgba(100,120,160,0.30)', line=dict(color='rgba(150,170,210,0.5)', width=1),
+    fig.add_trace(go.Scatter(
+        x=list(cmax.index) + list(cmin.index[::-1]),
+        y=list(cmax) + list(cmin[::-1]),
+        fill='toself', fillcolor=range_fill,
+        line=dict(color=range_line, width=1),
         name='Full Range', showlegend=True, hoverinfo='skip'))
-    fig.add_trace(go.Scatter(x=list(upper.index) + list(lower.index[::-1]),
-        y=list(upper) + list(lower[::-1]), fill='toself',
-        fillcolor='rgba(118,185,0,0.30)', line=dict(color='rgba(118,185,0,0.6)', width=1),
+    fig.add_trace(go.Scatter(
+        x=list(upper.index) + list(lower.index[::-1]),
+        y=list(upper) + list(lower[::-1]),
+        fill='toself', fillcolor='rgba(118,185,0,0.25)',
+        line=dict(color='rgba(118,185,0,0.5)', width=1),
         name='95% CI', showlegend=True, hoverinfo='skip'))
     for col in cum.columns:
-        fig.add_trace(go.Scatter(x=cum.index, y=cum[col], mode='lines',
-            line=dict(color='rgba(180,200,230,0.55)', width=1.2),
+        fig.add_trace(go.Scatter(
+            x=cum.index, y=cum[col], mode='lines',
+            line=dict(color=C_LINE_INDIV, width=1.2),
             name=col, showlegend=False,
             hovertemplate=f"{col}: %{{y:.2f}}%<extra></extra>"))
-    fig.add_trace(go.Scatter(x=med.index, y=med, mode='lines',
+    fig.add_trace(go.Scatter(
+        x=med.index, y=med, mode='lines',
         line=dict(color=C_BLUE, width=2.5, dash='dash'), name='Median'))
-    fig.add_trace(go.Scatter(x=mean.index, y=mean, mode='lines',
+    fig.add_trace(go.Scatter(
+        x=mean.index, y=mean, mode='lines',
         line=dict(color=C_GREEN, width=3.5), name='Mean'))
     fig.add_vline(x=0, line_dash="dash", line_color=C_GOLD,
         annotation_text="Earnings", annotation_font_color=C_TEXT,
         annotation_font_size=11)
     fig.add_hline(y=0, line_color=C_MUTED, line_width=1.2)
-    fig.update_layout(xaxis_title="Days Relative to Earnings",
-                      yaxis_title="Cumulative Return (%)",
-                      legend=dict(orientation="h", y=1.08,
-                                  font=dict(color=C_TEXT)))
+    fig.update_layout(
+        xaxis_title="Days Relative to Earnings",
+        yaxis_title="Cumulative Return (%)",
+        legend=dict(orientation="h", y=1.08, font=dict(color=C_TEXT)))
     return apply_theme(fig, 500, title)
 
 def plot_waterfall(labels, values, title=""):
     measure = ['relative'] * (len(values) - 1) + ['total']
+    connector_color = 'rgba(255,255,255,0.20)' if IS_DARK else 'rgba(0,0,0,0.15)'
     fig = go.Figure(go.Waterfall(
         orientation='v', measure=measure, x=labels, y=values,
         text=[f"{v:+.2f}%" for v in values], textposition='outside',
         textfont=dict(color=C_TEXT, size=11),
-        connector=dict(line=dict(color='rgba(255,255,255,0.25)')),
+        connector=dict(line=dict(color=connector_color)),
         increasing=dict(marker_color=C_GREEN),
         decreasing=dict(marker_color=C_RED),
         totals=dict(marker_color=C_BLUE)
@@ -263,7 +507,8 @@ def plot_vol_term_structure(event_df):
         v = sub['Total_Return'].std() * np.sqrt(252) * 100 if not sub.empty else 0
         vols.append(v)
         colors.append(C_RED if s == 0 else (C_GOLD if abs(s) <= 5 else C_BLUE))
-    fig = go.Figure(go.Bar(x=labels, y=vols, marker_color=colors,
+    fig = go.Figure(go.Bar(
+        x=labels, y=vols, marker_color=colors,
         text=[f"{v:.1f}%" for v in vols], textposition='outside',
         textfont=dict(color=C_TEXT, size=10)))
     fig.update_layout(xaxis_title="Event Window", yaxis_title="Annualized Vol (%)")
@@ -276,44 +521,52 @@ def plot_regime_comparison(event_df):
 
     def t0_stats(sub):
         t = sub[sub['Rel_Time'] == 0]['Total_Return'] * 100
-        return dict(mean=t.mean(), std=t.std(), win=( t > 0).mean() * 100,
+        return dict(mean=t.mean(), std=t.std(), win=(t > 0).mean() * 100,
                     idio=sub[sub['Rel_Time']==0]['Idio_Return'].abs().mean()*100)
-    
-    s_pre = t0_stats(pre)
-    s_post = t0_stats(post)
 
-    cats = ['Avg Move (%)', 'Volatility (%)', 'Win Rate (%)', 'Avg |Alpha| (%)']
+    s_pre  = t0_stats(pre)
+    s_post = t0_stats(post)
+    cats   = ['Avg Move (%)', 'Volatility (%)', 'Win Rate (%)', 'Avg |Alpha| (%)']
     fig = go.Figure()
-    fig.add_trace(go.Bar(name='Pre-AI Era (2022-May 2023)',
-        x=cats, y=[s_pre['mean'], s_pre['std'], s_pre['win'], s_pre['idio']],
-        marker_color=C_BLUE, text=[f"{v:.1f}" for v in [s_pre['mean'],s_pre['std'],s_pre['win'],s_pre['idio']]],
+    fig.add_trace(go.Bar(
+        name='Pre-AI Era (2022-May 2023)', x=cats,
+        y=[s_pre['mean'], s_pre['std'], s_pre['win'], s_pre['idio']],
+        marker_color=C_BLUE,
+        text=[f"{v:.1f}" for v in [s_pre['mean'],s_pre['std'],s_pre['win'],s_pre['idio']]],
         textposition='outside', textfont=dict(color=C_TEXT)))
-    fig.add_trace(go.Bar(name='AI Era (May 2023-Present)',
-        x=cats, y=[s_post['mean'], s_post['std'], s_post['win'], s_post['idio']],
-        marker_color=C_GREEN, text=[f"{v:.1f}" for v in [s_post['mean'],s_post['std'],s_post['win'],s_post['idio']]],
+    fig.add_trace(go.Bar(
+        name='AI Era (May 2023-Present)', x=cats,
+        y=[s_post['mean'], s_post['std'], s_post['win'], s_post['idio']],
+        marker_color=C_GREEN,
+        text=[f"{v:.1f}" for v in [s_post['mean'],s_post['std'],s_post['win'],s_post['idio']]],
         textposition='outside', textfont=dict(color=C_TEXT)))
     fig.update_layout(barmode='group', legend=dict(orientation='h', y=1.1, font=dict(color=C_TEXT)))
     return apply_theme(fig, 380, "Regime Comparison: Pre-AI vs AI Era")
 
 def plot_factor_loading_evolution(df_load):
     key_factors = [c for c in ['Beta', 'Momentum', 'Growth', 'Semiconductors', 'Volatility'] if c in df_load.columns]
-    fig = go.Figure()
     palette = [C_GREEN, C_BLUE, C_GOLD, C_RED, '#c084fc']
+    fig = go.Figure()
     for i, f in enumerate(key_factors):
-        fig.add_trace(go.Scatter(x=df_load.index, y=df_load[f], mode='lines',
+        fig.add_trace(go.Scatter(
+            x=df_load.index, y=df_load[f], mode='lines',
             name=f, line=dict(color=palette[i % len(palette)], width=2)))
     fig.add_hline(y=0, line_color=C_MUTED, line_width=1)
-    fig.update_layout(xaxis_title="Date", yaxis_title="Factor Loading",
-                      legend=dict(orientation='h', y=1.1))
+    fig.update_layout(
+        xaxis_title="Date", yaxis_title="Factor Loading",
+        legend=dict(orientation='h', y=1.1, font=dict(color=C_TEXT)))
     return apply_theme(fig, 420, "Factor Loading Evolution (2022-2025)")
 
 def plot_rolling_alpha_quality(df, event_df, window=63):
     idio = df['Idio_Return'].dropna()
     roll_sharpe = idio.rolling(window).apply(lambda x: sharpe(x, ann=252), raw=True)
+    fill_color = 'rgba(118,185,0,0.10)' if IS_DARK else 'rgba(118,185,0,0.12)'
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=roll_sharpe.index, y=roll_sharpe,
-        mode='lines', line=dict(color=C_GREEN, width=2), name=f'Rolling {window}d Alpha Sharpe',
-        fill='tozeroy', fillcolor='rgba(118,185,0,0.10)'))
+    fig.add_trace(go.Scatter(
+        x=roll_sharpe.index, y=roll_sharpe, mode='lines',
+        line=dict(color=C_GREEN, width=2),
+        name=f'Rolling {window}d Alpha Sharpe',
+        fill='tozeroy', fillcolor=fill_color))
     fig.add_hline(y=0, line_color=C_MUTED, line_width=1.5)
     for edate in event_df['Earnings_Date'].unique():
         fig.add_vline(x=edate, line_dash='dot', line_color=C_GOLD, line_width=1)
@@ -335,25 +588,62 @@ def plot_scatter_pre_vs_react(event_df, pre_days=5):
     corr = df_s['Pre'].corr(df_s['React'])
     fig = px.scatter(df_s, x='Pre', y='React', text='Event',
         trendline='ols', color_discrete_sequence=[C_GREEN])
-    fig.update_traces(textposition='top center', marker=dict(size=11),
-                      textfont=dict(color=C_TEXT, size=10))
+    fig.update_traces(
+        textposition='top center', marker=dict(size=11),
+        textfont=dict(color=C_TEXT, size=10))
     fig.add_hline(y=0, line_dash='dot', line_color=C_MUTED, line_width=1.5)
     fig.add_vline(x=0, line_dash='dot', line_color=C_MUTED, line_width=1.5)
-    fig.update_layout(xaxis_title=f"Pre-Earnings Drift ({pre_days}d, %)",
-                      yaxis_title="Earnings Day Reaction (%)")
+    fig.update_layout(
+        xaxis_title=f"Pre-Earnings Drift ({pre_days}d, %)",
+        yaxis_title="Earnings Day Reaction (%)")
     return apply_theme(fig, 420, f"Information Leakage: Pre-Drift vs Reaction (r={corr:.2f})")
 
-# --- MAIN APP LOGIC
 def main():
-    st.markdown("""
+    # ── Theme toggle button (top-right, fixed position) ──
+    st.markdown(f"""
+    <style>
+    div[data-testid="stButton"].theme-toggle-btn > button {{
+        position: fixed !important;
+        top: 14px !important;
+        right: 20px !important;
+        z-index: 9999 !important;
+        background: {C_CARD} !important;
+        color: {C_TEXT} !important;
+        border: 1.5px solid {C_BORDER} !important;
+        border-radius: 20px !important;
+        padding: 4px 14px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        box-shadow: {CARD_SHADOW} !important;
+        transition: all 0.2s ease !important;
+    }}
+    div[data-testid="stButton"].theme-toggle-btn > button:hover {{
+        background: {C_GREEN} !important;
+        color: #000 !important;
+        border-color: {C_GREEN} !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    col_head, col_btn = st.columns([10, 1])
+    with col_btn:
+        btn_label = "☀️ " if IS_DARK else "🌙 "
+        st.markdown('<div data-testid="stButton" class="theme-toggle-btn">', unsafe_allow_html=True)
+        if st.button(btn_label, key="theme_toggle"):
+            st.session_state.app_theme = 'Light' if IS_DARK else 'Dark'
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown(f"""
     <div style='display:flex; align-items:center; gap:16px; margin-bottom:20px; padding: 10px 0;'>
       <div style='background:#76b900; border-radius:8px; padding:8px 16px; 
            font-weight:800; font-size:22px; color:#000; letter-spacing:1px;'>NVDA</div>
       <div style='flex:1;'>
-        <div style='font-size:28px; font-weight:700; color:#e8eaf0; line-height:1.2;'>
+        <div style='font-size:28px; font-weight:700; color:{C_TEXT}; line-height:1.2;'>
           NVDA Earnings Intelligence Dashboard
         </div>
-        <div style='font-size:13px; color:#8892a4; margin-top:4px; line-height:1.4;'>
+        <div style='font-size:13px; color:{C_MUTED}; margin-top:4px; line-height:1.4;'>
           NVIDIA Corporation · Quantitative Event Study Analysis · Made by Sunil Bhatia
         </div>
       </div>
@@ -397,7 +687,9 @@ def main():
         "Trade Analytics",
         "Statistical Proof"
     ]
+    st.markdown('<div class="nvda-nav-wrap">', unsafe_allow_html=True)
     active_tab = st.radio("Navigation", tab_names, horizontal=True, label_visibility="collapsed")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     #
     # TAB 0 - EXECUTIVE BRIEF
@@ -452,8 +744,9 @@ def main():
                 x=t0['Event_ID'].values, y=t0_ret.values,
                 marker_color=colors_bar,
                 text=[f"{v:+.1f}%" for v in t0_ret.values],
-                textposition='outside',
-                textfont=dict(color=C_TEXT, size=11)
+                textposition='auto',
+                textfont=dict(color='white', size=11, family='Inter, sans-serif'),
+                insidetextanchor='middle',
             ))
             fig_bar.add_hline(y=t0_ret.mean(), line_dash='dash',
                 line_color=C_GOLD, annotation_text=f"Mean {t0_ret.mean():.1f}%",
@@ -478,8 +771,9 @@ def main():
                 y=[t0_idio.abs().mean(), t0_factor.abs().mean()],
                 marker_color=[C_GREEN, C_BLUE],
                 text=[f"{t0_idio.abs().mean():.2f}%", f"{t0_factor.abs().mean():.2f}%"],
-                textposition='outside',
-                textfont=dict(color=C_TEXT, size=12)
+                textposition='inside',
+                textfont=dict(color='white', size=14, family='Inter, sans-serif'),
+                insidetextanchor='middle',
             ))
             fig_ab.update_layout(showlegend=False, yaxis_title="Avg |Return| (%)")
             st.plotly_chart(apply_theme(fig_ab, 280), use_container_width=True)
@@ -502,7 +796,7 @@ def main():
         the total return on announcement day (T=0), and how that return splits into Alpha (company-specific) and Beta (market-driven).
         <b>Pre-5d Drift:</b> Movement in the 5 days BEFORE earnings (potential information leakage).
         <b>Post-5d Drift:</b> Movement in the 5 days AFTER earnings (continuation or reversal).
-        <b>Context:</b> What actually happened in that quarter.
+      
         </div>
         """, unsafe_allow_html=True)
         
@@ -547,7 +841,8 @@ def main():
             .format({'T=0 Total': '{:.2%}', 'T=0 Alpha': '{:.2%}',
                      'T=0 Beta': '{:.2%}', 'Pre-5d Drift': '{:.2%}', 'Post-5d Drift': '{:.2%}'})
             .background_gradient(subset=['T=0 Total'], cmap='RdYlGn', vmin=-0.15, vmax=0.15)
-            .background_gradient(subset=['T=0 Alpha'], cmap='RdYlGn', vmin=-0.15, vmax=0.15),
+            .background_gradient(subset=['T=0 Alpha'], cmap='RdYlGn', vmin=-0.15, vmax=0.15)
+            .set_table_styles(_DF_TABLE_STYLES),
             use_container_width=True, height=420
         )
 
@@ -724,7 +1019,8 @@ def main():
         q_matrix = pd.DataFrame(q_rows)
         st.dataframe(
             q_matrix.style.format({'Total':'{:.2%}','Alpha':'{:.2%}','Beta':'{:.2%}'})
-            .background_gradient(subset=['Total','Alpha'], cmap='RdYlGn', vmin=-0.12, vmax=0.12),
+            .background_gradient(subset=['Total','Alpha'], cmap='RdYlGn', vmin=-0.12, vmax=0.12)
+            .set_table_styles(_DF_TABLE_STYLES),
             use_container_width=True, height=380
         )
 
@@ -1188,7 +1484,10 @@ def main():
                 fig_radar = go.Figure(go.Scatterpolar(
                     r=avg_vec, theta=style_cols_r, fill='toself',
                     line=dict(color=C_GREEN, width=2), fillcolor='rgba(118,185,0,0.2)'))
-                fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True)))
+                fig_radar.update_layout(polar=dict(
+                    radialaxis=dict(visible=True, tickfont=dict(color=C_MUTED), gridcolor=C_GRID),
+                    angularaxis=dict(tickfont=dict(color=C_TEXT), gridcolor=C_GRID),
+                    bgcolor=C_CARD))
                 st.plotly_chart(apply_theme(fig_radar, 380, ""), use_container_width=True)
 
         st.markdown("---")
@@ -1222,7 +1521,7 @@ def main():
             for i, factor in enumerate(hm_df.T.index):
                 for j, event in enumerate(hm_df.T.columns):
                     val = hm_df.T.iloc[i, j]
-                    text_color = '#1a1f2e' if abs(val) < 3 else '#e8eaf0'
+                    text_color = '#000000' if abs(val) < 3 else '#ffffff'
                     fig_hm_q.add_annotation(
                         x=event, y=factor,
                         text=f'{val:.2f}',
@@ -1298,7 +1597,8 @@ def main():
             wr_df.style.format({
                 'Win Rate': '{:.0%}', 'Avg Win': '{:.2%}', 'Avg Loss': '{:.2%}',
                 'Risk/Reward': '{:.2f}', 'Kelly %': '{:.1%}', 'Sharpe': '{:.2f}'
-            }).background_gradient(subset=['Win Rate', 'Sharpe'], cmap='RdYlGn'),
+            }).background_gradient(subset=['Win Rate', 'Sharpe'], cmap='RdYlGn')
+            .set_table_styles(_DF_TABLE_STYLES),
             use_container_width=True
         )
         
@@ -1370,13 +1670,13 @@ def main():
                 val = hm_data.iloc[i, j]
                 if not pd.isna(val):
                     if hm_metric == "Average Return (%)":
-                        text_color = '#1a1f2e' if abs(val) < 5 else '#e8eaf0'
+                        text_color = '#000000' if abs(val) < 5 else '#ffffff'
                     elif hm_metric == "Win Rate (%)":
-                        text_color = '#1a1f2e' if abs(val - 50) < 15 else '#e8eaf0'
+                        text_color = '#000000' if abs(val - 50) < 15 else '#ffffff'
                     elif hm_metric == "Worst Trade (%)":
-                        text_color = '#1a1f2e' if val > -10 else '#e8eaf0'
+                        text_color = '#000000' if val > -10 else '#ffffff'
                     else:
-                        text_color = '#1a1f2e' if abs(val) < 1 else '#e8eaf0'
+                        text_color = '#000000' if abs(val) < 1 else '#ffffff'
                     
                     fig_hm.add_annotation(
                         x=ext_day, y=ent_day,
@@ -1564,7 +1864,8 @@ def main():
         
         st.dataframe(
             test_df.style.format({'Mean':'{:.3%}','Std Dev':'{:.3%}','t-stat':'{:.2f}','p-value':'{:.4f}'})
-            .background_gradient(subset=['p-value'], cmap='RdYlGn_r', vmin=0, vmax=0.15),
+            .background_gradient(subset=['p-value'], cmap='RdYlGn_r', vmin=0, vmax=0.15)
+            .set_table_styles(_DF_TABLE_STYLES),
             use_container_width=True, height=500
         )
         if not test_df.empty:
